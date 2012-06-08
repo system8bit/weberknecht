@@ -11,7 +11,7 @@ This short code snippet shows how to integrate weberknecht in your application:
 
 	try {
 			URI url = new URI("ws://127.0.0.1:8080/test");
-			WebSocket websocket = new WebSocketConnection(url);
+			WebSocket websocket = new WebSocket(url);
 			
 			// Register Event Handlers
 			websocket.setEventHandler(new WebSocketEventHandler() {

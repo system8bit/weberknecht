@@ -26,13 +26,13 @@ public class WebSocketReceiver
 		extends Thread
 {
 	private InputStream input = null;
-	private WebSocketConnection websocket = null;
+	private WebSocket websocket = null;
 	private WebSocketEventHandler eventHandler = null;
 
 	private volatile boolean stop = false;
 
 	
-	public WebSocketReceiver(InputStream input, WebSocketConnection websocket)
+	public WebSocketReceiver(InputStream input, WebSocket websocket)
 	{
 		this.input = input;
 		this.websocket = websocket;
