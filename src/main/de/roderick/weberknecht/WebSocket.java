@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2011 Roderick Baier
+ *  Copyright (C) 2012 Roderick Baier
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,13 +16,13 @@
 
 package de.roderick.weberknecht;
 
+import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintStream;
-import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import javax.net.SocketFactory;
@@ -31,13 +31,22 @@ import javax.net.ssl.SSLSocketFactory;
 
 public class WebSocket
 {
+	private static final String GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	private static final int VERSION = 13;
+	
+    static final byte OPCODE_TEXT = 0x1;
+    static final byte OPCODE_BINARY = 0x2;
+    static final byte OPCODE_CLOSE = 0x8;
+    static final byte OPCODE_PING = 0x9;
+    static final byte OPCODE_PONG = 0xA;
+	
 	private URI url = null;
 	private WebSocketEventHandler eventHandler = null;
 	
 	private volatile boolean connected = false;
 	
 	private Socket socket = null;
-	private InputStream input = null;
+	private DataInputStream input = null;
 	private PrintStream output = null;
 	
 	private WebSocketReceiver receiver = null;
@@ -55,7 +64,7 @@ public class WebSocket
 			throws WebSocketException
 	{
 		this.url = url;
-		handshake = new WebSocketHandshake(url, protocol);
+		handshake = new WebSocketHandshake(url, protocol, null);
 	}
 	
 
@@ -80,35 +89,26 @@ public class WebSocket
 			}
 			
 			socket = createSocket();
-			input = socket.getInputStream();
+			input = new DataInputStream(socket.getInputStream());
 			output = new PrintStream(socket.getOutputStream());
 			
 			output.write(handshake.getHandshake());
 						
 			boolean handshakeComplete = false;
-			boolean header = true;
 			int len = 1000;
 			byte[] buffer = new byte[len];
 			int pos = 0;
 			ArrayList<String> handshakeLines = new ArrayList<String>();
-			
-			byte[] serverResponse = new byte[16];
-			
+						
 			while (!handshakeComplete) {
 				int b = input.read();
 				buffer[pos] = (byte) b;
 				pos += 1;
 				
-				if (!header) {
-					serverResponse[pos-1] = (byte)b;
-					if (pos == 16) {
-						handshakeComplete = true;
-					}
-				}
-				else if (buffer[pos-1] == 0x0A && buffer[pos-2] == 0x0D) {
+				if (buffer[pos-1] == 0x0A && buffer[pos-2] == 0x0D) {
 					String line = new String(buffer, "UTF-8");
 					if (line.trim().equals("")) {
-						header = false;
+						handshakeComplete = true;
 					}
 					else {
 						handshakeLines.add(line.trim());
@@ -119,9 +119,10 @@ public class WebSocket
 				}
 			}
 			
+			for (String line : handshakeLines) {
+				System.out.println(line);
+			}
 			handshake.verifyServerStatusLine(handshakeLines.get(0));
-			handshake.verifyServerResponse(serverResponse);
-			
 			handshakeLines.remove(0);
 			
 			HashMap<String, String> headers = new HashMap<String, String>();
@@ -153,23 +154,48 @@ public class WebSocket
 		}
 		
 		try {
-			output.write(0x00);
-			output.write(data.getBytes(("UTF-8")));
-			output.write(0xff);
-                        output.flush();
-		}
-		catch (UnsupportedEncodingException uee) {
-			throw new WebSocketException("error while sending text data: unsupported encoding", uee);
-		}
-		catch (IOException ioe) {
-			throw new WebSocketException("error while sending text data", ioe);
+			this.send_frame(OPCODE_TEXT, false, data.getBytes());
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 	
 	
-	public synchronized void send(byte[] data)
-			throws WebSocketException
+	private synchronized void send_frame(byte opcode, boolean masking, byte[] data)
+			throws WebSocketException, IOException
 	{
+		ByteBuffer frame = ByteBuffer.allocate(data.length + 2);
+		byte fin = (byte) 0x80;
+		byte x = (byte) (fin | opcode);
+		frame.put(x);
+		int length = data.length;
+		int length_field = 0;
+		
+		if (length < 126) {
+			if (masking) {
+				length = 0x80 | length;
+			}
+			frame.put((byte) length);
+		}
+		else if (length <= 65535) {
+			length_field = 126;
+			if (masking) {
+				length_field = 0x80 | length_field;
+			}
+			frame.put((byte) length_field);
+			frame.put((byte) length);
+		}
+		else {
+			length_field = 127;
+			if (masking) {
+				length_field = 0x80 | length_field;
+			}
+			frame.put((byte) length_field);
+			frame.put((byte) length);
+		}
+		frame.put(data);
+		output.write(frame.array());
+		output.flush();
 	}
 	
 	
@@ -212,12 +238,15 @@ public class WebSocket
 			throw new WebSocketException("error while sending close handshake: not connected");
 		}
 		
-		try {
-			output.write(0xff00);
-			output.write("\r\n".getBytes());
+		System.out.println("Sending close");
+		if (!connected) {
+			throw new WebSocketException("error while sending close");
 		}
-		catch (IOException ioe) {
-			throw new WebSocketException("error while sending close handshake", ioe);
+		
+		try {
+			this.send_frame(OPCODE_CLOSE, false, new byte[0]);
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 
 		connected = false;

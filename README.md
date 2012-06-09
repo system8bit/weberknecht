@@ -1,9 +1,11 @@
 weberknecht - Java WebSocket Client Library
 ===========================================
 
-Weberknecht is a Java implementation of the client side of the IETF WebSocket Protocol Draft
-draft-ietf-hybi-thewebsocketprotocol-00 (May 23, 2010) for use in Java SE or Android applications.
+Weberknecht is a Java implementation of the client side of the WebSocket Protocol for use in Java applications.
 
+Requirements
+------------
+ * Apache Commons Codec 1.6
 
 Usage
 -----
@@ -29,6 +31,9 @@ This short code snippet shows how to integrate weberknecht in your application:
 					{
 							System.out.println("--close");
 					}
+
+                    public void onPing() {}
+                    public void onPong() {}
 			});
 			
 			// Establish WebSocket Connection

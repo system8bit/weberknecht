@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2011 Roderick Baier
+ *  Copyright (C) 2012 Roderick Baier
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 package de.roderick.weberknecht;
 
+import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,14 +25,14 @@ import java.util.List;
 public class WebSocketReceiver
 		extends Thread
 {
-	private InputStream input = null;
+	private DataInputStream input = null;
 	private WebSocket websocket = null;
 	private WebSocketEventHandler eventHandler = null;
 
 	private volatile boolean stop = false;
 
 	
-	public WebSocketReceiver(InputStream input, WebSocket websocket)
+	public WebSocketReceiver(DataInputStream input, WebSocket websocket)
 	{
 		this.input = input;
 		this.websocket = websocket;
@@ -42,27 +42,30 @@ public class WebSocketReceiver
 
 	public void run()
 	{
-		boolean frameStart = false;
 		List<Byte> messageBytes = new ArrayList<Byte>();
 
 		while (!stop) {
 			try {
-				int b = input.read();
-				if (b == 0x00) {
-					frameStart = true;
+				byte b = input.readByte();
+				byte opcode = (byte) (b & 0xf);
+				byte length = input.readByte();
+				int payload_length = 0;
+				if (length < 126) {
+					payload_length = length;
 				}
-				else if (b == 0xff && frameStart == true) {
-					frameStart = false;
-					Byte[] message = messageBytes.toArray(new Byte[messageBytes.size()]);
-					eventHandler.onMessage(new WebSocketMessage(message));
-					messageBytes.clear();
+				else if (length == 126) {
+					// TODO read 2 byte length field
 				}
-				else if (frameStart == true){
-					messageBytes.add((byte)b);
+				else if (length == 127) {
+					// TODO read 8 byte length field
 				}
-				else if (b == -1) {
-					handleError();
+				for (int i = 0; i < payload_length; i++) {
+					messageBytes.add(input.readByte());
 				}
+				Byte[] message = messageBytes.toArray(new Byte[messageBytes.size()]);
+				WebSocketMessage ws_message = new WebSocketMessage(message);
+				eventHandler.onMessage(ws_message);
+				messageBytes.clear();
 			}
 			catch (IOException ioe) {
 				handleError();

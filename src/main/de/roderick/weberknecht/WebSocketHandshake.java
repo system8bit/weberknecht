@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2011 Roderick Baier
+ *  Copyright (C) 2012 Roderick Baier
  *  
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -17,30 +17,25 @@
 package de.roderick.weberknecht;
 
 import java.net.URI;
-import java.nio.ByteBuffer;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.HashMap;
+
+import org.apache.commons.codec.binary.Base64;
 
 
 public class WebSocketHandshake
-{	
-	private String key1 = null;
-	private String key2 = null;
-	private byte[] key3 = null;
-	private byte[] expectedServerResponse = null;
-	
+{
 	private URI url = null;
 	private String origin = null;
 	private String protocol = null;
+	private String nonce = null;
 	
 	
-	public WebSocketHandshake(URI url, String protocol)
+	public WebSocketHandshake(URI url, String protocol, String origin)
 	{
 		this.url = url;
-		this.protocol = null;
-		generateKeys();
+		this.protocol = protocol;
+		this.origin = origin;
+		this.nonce = this.createNone();
 	}
 	
 	
@@ -52,33 +47,34 @@ public class WebSocketHandshake
 		
 		String handshake = "GET " + path + " HTTP/1.1\r\n" +
 				"Host: " + host + "\r\n" +
+				"Upgrade: websocket\r\n" +
 				"Connection: Upgrade\r\n" +
-				"Sec-WebSocket-Key2: " + key2 + "\r\n";
+				"Sec-WebSocket-Key: " + this.nonce + "\r\n";
 		
-		if (protocol != null) {
-			handshake += "Sec-WebSocket-Protocol: " + protocol + "\r\n";
+		if (this.protocol != null) {
+			handshake += "Sec-WebSocket-Protocol: " + this.protocol + "\r\n";
 		}
 		
-		handshake += "Upgrade: WebSocket\r\n" +
-				"Sec-WebSocket-Key1: " + key1 + "\r\n" +
-				"Origin: " + origin + "\r\n" +
-				"\r\n";
+		if (this.origin != null) {
+			handshake += "Origin: " + this.origin + "\r\n";
+		}
 		
-		byte[] handshakeBytes = new byte[handshake.getBytes().length + 8];
+		handshake += "\r\n";
+		
+		byte[] handshakeBytes = new byte[handshake.getBytes().length];
 		System.arraycopy(handshake.getBytes(), 0, handshakeBytes, 0, handshake.getBytes().length);
-		System.arraycopy(key3, 0, handshakeBytes, handshake.getBytes().length, 8);		
 		
 		return handshakeBytes;
 	}
 	
 	
-	public void verifyServerResponse(byte[] bytes)
-		throws WebSocketException
-	{
-		if (!Arrays.equals(bytes, expectedServerResponse)) {
-			throw new WebSocketException("not a WebSocket Server");
-		}
-	}
+	private String createNone() {
+        byte[] nonce = new byte[16];
+        for (int i = 0; i < 16; i++) {
+            nonce[i] = (byte) rand(0, 255);
+        }
+        return Base64.encodeBase64String(nonce);
+    }
 	
 	
 	public void verifyServerStatusLine(String statusLine)
@@ -101,123 +97,11 @@ public class WebSocketHandshake
 	public void verifyServerHandshakeHeaders(HashMap<String, String> headers)
 		throws WebSocketException
 	{
-		if (!headers.get("Upgrade").equals("WebSocket")) {
+		if (!headers.get("Upgrade").equals("websocket")) {
 			throw new WebSocketException("connection failed: missing header field in server handshake: Upgrade");
 		}
 		else if (!headers.get("Connection").equals("Upgrade")) {
 			throw new WebSocketException("connection failed: missing header field in server handshake: Connection");
-		}
-		else if (!headers.get("Sec-WebSocket-Origin").equals(origin)) {
-			throw new WebSocketException("connection failed: missing header field in server handshake: Sec-WebSocket-Origin");
-		}
-		
-		// TODO see 4.1. step 41
-//		else if (!headers.get("Sec-WebSocket-Location").equals(url.toASCIIString())) {
-//			System.out.println("location: " + url.toASCIIString());
-//		}
-//		else if protocol
-	}
-		
-	
-	private void generateKeys()
-	{
-		int spaces1 = rand(1,12);
-		int spaces2 = rand(1,12);
-		
-		int max1 = Integer.MAX_VALUE / spaces1;
-		int max2 = Integer.MAX_VALUE / spaces2;
-		
-		int number1 = rand(0, max1);
-		int number2 = rand(0, max2);
-		
-		int product1 = number1 * spaces1;
-		int product2 = number2 * spaces2;
-		
-		key1 = Integer.toString(product1);
-		key2 = Integer.toString(product2);
-		
-		key1 = insertRandomCharacters(key1);
-		key2 = insertRandomCharacters(key2);
-		
-		key1 = insertSpaces(key1, spaces1);
-		key2 = insertSpaces(key2, spaces2);
-		
-		key3 = createRandomBytes();
-		
-		ByteBuffer buffer = ByteBuffer.allocate(4);
-		buffer.putInt(number1);
-		byte[] number1Array = buffer.array();
-		buffer = ByteBuffer.allocate(4);
-		buffer.putInt(number2);
-		byte[] number2Array = buffer.array();
-		
-		byte[] challenge = new byte[16];				
-		System.arraycopy(number1Array, 0, challenge, 0, 4);
-		System.arraycopy(number2Array, 0, challenge, 4, 4);
-		System.arraycopy(key3, 0, challenge, 8, 8);
-
-		expectedServerResponse = md5(challenge);
-	}
-	
-	
-	private String insertRandomCharacters(String key)
-	{
-		int count = rand(1, 12);
-		
-		char[] randomChars = new char[count];
-		int randCount = 0;
-		while (randCount < count) {
-			int rand = (int) (Math.random() * 0x7e + 0x21);
-			if (((0x21 < rand) && (rand < 0x2f)) || ((0x3a < rand) && (rand < 0x7e))) {
-				randomChars[randCount] = (char) rand;
-				randCount += 1;
-			}
-		}
-		
-		for (int i = 0; i < count; i++) {
-			int split = rand(0, key.length());
-			String part1 = key.substring(0, split);
-			String part2 = key.substring(split);
-			key = part1 + randomChars[i] + part2;
-		}
-		
-		return key;
-	}
-	
-	
-	private String insertSpaces(String key, int spaces)
-	{
-		for (int i = 0; i < spaces; i++) {
-			int split = rand(1, key.length()-1);
-			String part1 = key.substring(0, split);
-			String part2 = key.substring(split);
-			key = part1 + " " + part2;
-		}
-		
-		return key;
-	}
-	
-	
-	private byte[] createRandomBytes()
-	{
-		byte[] bytes = new byte[8];
-		
-		for (int i = 0; i < 8; i++) {
-			bytes[i] = (byte) rand(0, 255);
-		}
-		
-		return bytes;
-	}
-	
-	
-	private byte[] md5(byte[] bytes)
-	{
-		try {
-			MessageDigest md = MessageDigest.getInstance("MD5");
-			return md.digest(bytes);
-		}
-		catch (NoSuchAlgorithmException e) {
-			return null;
 		}
 	}
 	
