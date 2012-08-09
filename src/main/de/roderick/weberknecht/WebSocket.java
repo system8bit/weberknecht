@@ -56,15 +56,22 @@ public class WebSocket
 	public WebSocket(URI url)
 			throws WebSocketException
 	{
-		this(url, null);
+		this(url, null, null);
 	}
 	
 
 	public WebSocket(URI url, String protocol)
 			throws WebSocketException
 	{
+		this(url, protocol, null);
+	}
+	
+	
+	public WebSocket(URI url, String protocol, String origin)
+			throws WebSocketException
+	{
 		this.url = url;
-		handshake = new WebSocketHandshake(url, protocol, null);
+		handshake = new WebSocketHandshake(url, protocol, origin);
 	}
 	
 
