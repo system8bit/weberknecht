@@ -34,11 +34,11 @@ public class WebSocket
 	private static final String GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 	private static final int VERSION = 13;
 	
-    static final byte OPCODE_TEXT = 0x1;
-    static final byte OPCODE_BINARY = 0x2;
-    static final byte OPCODE_CLOSE = 0x8;
-    static final byte OPCODE_PING = 0x9;
-    static final byte OPCODE_PONG = 0xA;
+	static final byte OPCODE_TEXT = 0x1;
+	static final byte OPCODE_BINARY = 0x2;
+	static final byte OPCODE_CLOSE = 0x8;
+	static final byte OPCODE_PING = 0x9;
+	static final byte OPCODE_PONG = 0xA;
 	
 	private URI url = null;
 	private WebSocketEventHandler eventHandler = null;
@@ -310,5 +310,9 @@ public class WebSocket
 		catch (IOException ioe) {
 			throw new WebSocketException("error while closing websocket connection: ", ioe);
 		}
+	}
+	
+	public static int getVersion() {
+		return VERSION;
 	}
 }

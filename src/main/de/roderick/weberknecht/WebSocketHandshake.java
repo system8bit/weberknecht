@@ -49,6 +49,7 @@ public class WebSocketHandshake
 				"Host: " + host + "\r\n" +
 				"Upgrade: websocket\r\n" +
 				"Connection: Upgrade\r\n" +
+				"Sec-WebSocket-Version: " + WebSocket.getVersion() +"\r\n" +
 				"Sec-WebSocket-Key: " + this.nonce + "\r\n";
 		
 		if (this.protocol != null) {
@@ -97,7 +98,7 @@ public class WebSocketHandshake
 	public void verifyServerHandshakeHeaders(HashMap<String, String> headers)
 		throws WebSocketException
 	{
-		if (!headers.get("Upgrade").equals("websocket")) {
+		if (!headers.get("Upgrade").toLowerCase().equals("websocket")) {
 			throw new WebSocketException("connection failed: missing header field in server handshake: Upgrade");
 		}
 		else if (!headers.get("Connection").equals("Upgrade")) {
