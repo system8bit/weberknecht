@@ -43,7 +43,6 @@ public class WebSocketHandshake
 	{
 		String path = url.getPath();
 		String host = url.getHost();
-		origin = "http://" + host;
 		
 		String handshake = "GET " + path + " HTTP/1.1\r\n" +
 				"Host: " + host + "\r\n" +
