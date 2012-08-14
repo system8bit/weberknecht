@@ -271,7 +271,7 @@ public class WebSocket
 		}
 		
 		try {
-			this.send_frame(OPCODE_CLOSE, false, new byte[0]);
+			this.send_frame(OPCODE_CLOSE, true, new byte[0]);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
