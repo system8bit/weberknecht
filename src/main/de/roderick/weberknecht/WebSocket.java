@@ -25,6 +25,7 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -52,6 +53,7 @@ public class WebSocket
 	private WebSocketReceiver receiver = null;
 	private WebSocketHandshake handshake = null;
 	
+	private final Random random = new Random();
 	
 	public WebSocket(URI url)
 			throws WebSocketException
@@ -161,7 +163,7 @@ public class WebSocket
 		}
 		
 		try {
-			this.send_frame(OPCODE_TEXT, false, data.getBytes());
+			this.send_frame(OPCODE_TEXT, true, data.getBytes());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -171,7 +173,14 @@ public class WebSocket
 	private synchronized void send_frame(byte opcode, boolean masking, byte[] data)
 			throws WebSocketException, IOException
 	{
-		ByteBuffer frame = ByteBuffer.allocate(data.length + 2);
+		int headerLength;
+		if (masking) {
+			headerLength = 6;
+		} else {
+			headerLength = 2;
+		}
+		ByteBuffer frame = ByteBuffer.allocate(data.length + headerLength);
+		
 		byte fin = (byte) 0x80;
 		byte x = (byte) (fin | opcode);
 		frame.put(x);
@@ -200,6 +209,17 @@ public class WebSocket
 			frame.put((byte) length_field);
 			frame.put((byte) length);
 		}
+		
+		byte[] mask = null;
+		if (masking) {
+			mask = generateMask();
+			frame.put(mask);
+			
+			for (int i = 0; i < data.length; i++) {
+				data[i] ^= mask[i % 4];
+			}
+		}
+		
 		frame.put(data);
 		output.write(frame.array());
 		output.flush();
@@ -305,6 +325,11 @@ public class WebSocket
 		return socket;
 	}
 	
+	private byte[] generateMask() {
+		final byte[] mask = new byte[4];
+		random.nextBytes(mask);
+		return mask;
+	}
 	
 	private void closeStreams()
 		throws WebSocketException
