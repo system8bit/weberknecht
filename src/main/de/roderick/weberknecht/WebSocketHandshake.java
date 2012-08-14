@@ -44,11 +44,15 @@ public class WebSocketHandshake
 		String path = url.getPath();
 		String host = url.getHost();
 		
+		if (url.getPort() != -1) {
+			host += ":" + url.getPort();
+		}
+		
 		String handshake = "GET " + path + " HTTP/1.1\r\n" +
 				"Host: " + host + "\r\n" +
 				"Upgrade: websocket\r\n" +
 				"Connection: Upgrade\r\n" +
-				"Sec-WebSocket-Version: " + WebSocket.getVersion() +"\r\n" +
+				"Sec-WebSocket-Version: " + WebSocket.getVersion() + "\r\n" +
 				"Sec-WebSocket-Key: " + this.nonce + "\r\n";
 		
 		if (this.protocol != null) {
