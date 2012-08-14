@@ -16,6 +16,7 @@
 
 package de.roderick.weberknecht;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -25,6 +26,7 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 
@@ -52,6 +54,7 @@ public class WebSocket
 	private WebSocketReceiver receiver = null;
 	private WebSocketHandshake handshake = null;
 	
+	private final Random random = new Random();
 	
 	public WebSocket(URI url)
 			throws WebSocketException
@@ -161,7 +164,7 @@ public class WebSocket
 		}
 		
 		try {
-			this.send_frame(OPCODE_TEXT, false, data.getBytes());
+			this.send_frame(OPCODE_TEXT, true, data.getBytes());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -171,10 +174,15 @@ public class WebSocket
 	private synchronized void send_frame(byte opcode, boolean masking, byte[] data)
 			throws WebSocketException, IOException
 	{
-		ByteBuffer frame = ByteBuffer.allocate(data.length + 2);
+		int headerLength = 2; // This is just an assumed headerLength, as we use a ByteArrayOutputStream
+		if (masking) {
+			headerLength += 4;
+		}
+		ByteArrayOutputStream frame = new ByteArrayOutputStream(data.length + headerLength);
+		
 		byte fin = (byte) 0x80;
 		byte x = (byte) (fin | opcode);
-		frame.put(x);
+		frame.write(x);
 		int length = data.length;
 		int length_field = 0;
 		
@@ -182,26 +190,41 @@ public class WebSocket
 			if (masking) {
 				length = 0x80 | length;
 			}
-			frame.put((byte) length);
+			frame.write((byte) length);
 		}
 		else if (length <= 65535) {
 			length_field = 126;
 			if (masking) {
 				length_field = 0x80 | length_field;
 			}
-			frame.put((byte) length_field);
-			frame.put((byte) length);
+			frame.write((byte) length_field);
+			byte[] lengthBytes = intToByteArray(length);
+			frame.write(lengthBytes[2]);
+			frame.write(lengthBytes[3]);
 		}
 		else {
 			length_field = 127;
 			if (masking) {
 				length_field = 0x80 | length_field;
 			}
-			frame.put((byte) length_field);
-			frame.put((byte) length);
+			frame.write((byte) length_field);
+			// Since an integer occupies just 4 bytes we fill the 4 leading length bytes with zero
+			frame.write(intToByteArray(0));
+			frame.write(intToByteArray(length));
 		}
-		frame.put(data);
-		output.write(frame.array());
+		
+		byte[] mask = null;
+		if (masking) {
+			mask = generateMask();
+			frame.write(mask);
+			
+			for (int i = 0; i < data.length; i++) {
+				data[i] ^= mask[i % 4];
+			}
+		}
+		
+		frame.write(data);
+		output.write(frame.toByteArray());
 		output.flush();
 	}
 	
@@ -251,7 +274,7 @@ public class WebSocket
 		}
 		
 		try {
-			this.send_frame(OPCODE_CLOSE, false, new byte[0]);
+			this.send_frame(OPCODE_CLOSE, true, new byte[0]);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -305,6 +328,16 @@ public class WebSocket
 		return socket;
 	}
 	
+	private byte[] generateMask() {
+		final byte[] mask = new byte[4];
+		random.nextBytes(mask);
+		return mask;
+	}
+	
+	private byte[] intToByteArray(int number) {
+		byte[] bytes = ByteBuffer.allocate(4).putInt(number).array();
+		return bytes;
+	}
 	
 	private void closeStreams()
 		throws WebSocketException
