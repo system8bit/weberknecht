@@ -49,15 +49,18 @@ public class WebSocketReceiver
 				byte b = input.readByte();
 				byte opcode = (byte) (b & 0xf);
 				byte length = input.readByte();
-				int payload_length = 0;
+				long payload_length = 0;
 				if (length < 126) {
 					payload_length = length;
 				}
 				else if (length == 126) {
-					// TODO read 2 byte length field
+					payload_length = ((0xff & input.readByte()) << 8) | (0xff & input.readByte());
 				}
 				else if (length == 127) {
-					// TODO read 8 byte length field
+					// Does work up to MAX_VALUE of long (2^63-1) after that minus values are returned.
+					// However frames with such a high payload length are vastly unrealistic.
+					// TODO: add Limit for WebSocket Payload Length.
+					payload_length = input.readLong();
 				}
 				for (int i = 0; i < payload_length; i++) {
 					messageBytes.add(input.readByte());
