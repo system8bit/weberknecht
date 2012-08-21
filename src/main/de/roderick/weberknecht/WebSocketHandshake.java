@@ -35,7 +35,7 @@ public class WebSocketHandshake
 		this.url = url;
 		this.protocol = protocol;
 		this.origin = origin;
-		this.nonce = this.createNone();
+		this.nonce = this.createNonce();
 	}
 	
 	
@@ -72,7 +72,7 @@ public class WebSocketHandshake
 	}
 	
 	
-	private String createNone() {
+	private String createNonce() {
         byte[] nonce = new byte[16];
         for (int i = 0; i < 16; i++) {
             nonce[i] = (byte) rand(0, 255);
