@@ -19,22 +19,24 @@ package de.roderick.weberknecht;
 import java.net.URI;
 import java.util.HashMap;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.apache.commons.codec.binary.Base64;
 
 
 public class WebSocketHandshake
 {
 	private URI url = null;
-	private String origin = null;
 	private String protocol = null;
 	private String nonce = null;
+	private Map<String, String> extraHeaders = null;
 	
 	
-	public WebSocketHandshake(URI url, String protocol, String origin)
+	public WebSocketHandshake(URI url, String protocol, Map<String, String> extraHeaders)
 	{
 		this.url = url;
 		this.protocol = protocol;
-		this.origin = origin;
+		this.extraHeaders = extraHeaders;
 		this.nonce = this.createNonce();
 	}
 	
@@ -48,27 +50,44 @@ public class WebSocketHandshake
 			host += ":" + url.getPort();
 		}
 		
-		String handshake = "GET " + path + " HTTP/1.1\r\n" +
-				"Host: " + host + "\r\n" +
-				"Upgrade: websocket\r\n" +
-				"Connection: Upgrade\r\n" +
-				"Sec-WebSocket-Version: " + WebSocket.getVersion() + "\r\n" +
-				"Sec-WebSocket-Key: " + this.nonce + "\r\n";
+		LinkedHashMap<String, String> header = new LinkedHashMap<String, String>();
+		header.put("Host", host);
+		header.put("Upgrade", "websocket");
+		header.put("Connection", "Upgrade");
+		header.put("Sec-WebSocket-Version", String.valueOf(WebSocket.getVersion()));
+		header.put("Sec-WebSocket-Key", this.nonce);
 		
 		if (this.protocol != null) {
-			handshake += "Sec-WebSocket-Protocol: " + this.protocol + "\r\n";
+			header.put("Sec-WebSocket-Protocol", this.protocol);
 		}
 		
-		if (this.origin != null) {
-			handshake += "Origin: " + this.origin + "\r\n";
+		if (this.extraHeaders != null) {
+			for (String fieldName : this.extraHeaders.keySet()) {
+				// Only checks for Field names with the exact same text,
+				// but according to RFC 2616 (HTTP) field names are case-insensitive.
+				if (!header.containsKey(fieldName)) {
+					header.put(fieldName, this.extraHeaders.get(fieldName));
+				}
+			}
 		}
 		
+		String handshake = "GET " + path + " HTTP/1.1\r\n";
+		handshake += this.generateHeader(header);
 		handshake += "\r\n";
 		
 		byte[] handshakeBytes = new byte[handshake.getBytes().length];
 		System.arraycopy(handshake.getBytes(), 0, handshakeBytes, 0, handshake.getBytes().length);
 		
 		return handshakeBytes;
+	}
+	
+	
+	private String generateHeader(LinkedHashMap<String, String> headers) {
+		String header = new String();
+		for (String fieldName : headers.keySet()) {
+			header += fieldName + ": " + headers.get(fieldName) + "\r\n";
+		}
+		return header;
 	}
 	
 	

@@ -26,6 +26,7 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
@@ -70,11 +71,11 @@ public class WebSocket
 	}
 	
 	
-	public WebSocket(URI url, String protocol, String origin)
+	public WebSocket(URI url, String protocol, Map<String, String> extraHeaders)
 			throws WebSocketException
 	{
 		this.url = url;
-		handshake = new WebSocketHandshake(url, protocol, origin);
+		handshake = new WebSocketHandshake(url, protocol, extraHeaders);
 	}
 	
 
@@ -181,8 +182,8 @@ public class WebSocket
 		ByteArrayOutputStream frame = new ByteArrayOutputStream(data.length + headerLength);
 		
 		byte fin = (byte) 0x80;
-		byte x = (byte) (fin | opcode);
-		frame.write(x);
+		byte startByte = (byte) (fin | opcode);
+		frame.write(startByte);
 		int length = data.length;
 		int length_field = 0;
 		
@@ -209,7 +210,7 @@ public class WebSocket
 			}
 			frame.write((byte) length_field);
 			// Since an integer occupies just 4 bytes we fill the 4 leading length bytes with zero
-			frame.write(intToByteArray(0));
+			frame.write(new byte[] {0x0,0x0,0x0,0x0});
 			frame.write(intToByteArray(length));
 		}
 		
