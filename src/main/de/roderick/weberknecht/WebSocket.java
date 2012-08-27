@@ -26,6 +26,7 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
@@ -70,11 +71,11 @@ public class WebSocket
 	}
 	
 	
-	public WebSocket(URI url, String protocol, String origin)
+	public WebSocket(URI url, String protocol, Map<String, String> extraHeaders)
 			throws WebSocketException
 	{
 		this.url = url;
-		handshake = new WebSocketHandshake(url, protocol, origin);
+		handshake = new WebSocketHandshake(url, protocol, extraHeaders);
 	}
 	
 

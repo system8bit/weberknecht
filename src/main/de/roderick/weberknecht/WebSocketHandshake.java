@@ -20,22 +20,23 @@ import java.net.URI;
 import java.util.HashMap;
 
 import java.util.LinkedHashMap;
+import java.util.Map;
 import org.apache.commons.codec.binary.Base64;
 
 
 public class WebSocketHandshake
 {
 	private URI url = null;
-	private String origin = null;
 	private String protocol = null;
 	private String nonce = null;
+	private Map<String, String> extraHeaders = null;
 	
 	
-	public WebSocketHandshake(URI url, String protocol, String origin)
+	public WebSocketHandshake(URI url, String protocol, Map<String, String> extraHeaders)
 	{
 		this.url = url;
 		this.protocol = protocol;
-		this.origin = origin;
+		this.extraHeaders = extraHeaders;
 		this.nonce = this.createNonce();
 	}
 	
@@ -60,8 +61,14 @@ public class WebSocketHandshake
 			header.put("Sec-WebSocket-Protocol", this.protocol);
 		}
 		
-		if (this.origin != null) {
-			header.put("Origin", this.origin);
+		if (this.extraHeaders != null) {
+			for (String fieldName : this.extraHeaders.keySet()) {
+				// Only checks for Field names with the exact same text,
+				// but according to RFC 2616 (HTTP) field names are case-insensitive.
+				if (!header.containsKey(fieldName)) {
+					header.put(fieldName, this.extraHeaders.get(fieldName));
+				}
+			}
 		}
 		
 		String handshake = "GET " + path + " HTTP/1.1\r\n";
@@ -77,8 +84,8 @@ public class WebSocketHandshake
 	
 	private String generateHeader(LinkedHashMap<String, String> headers) {
 		String header = new String();
-		for (String headerName : headers.keySet()) {
-			header += headerName + ": " + headers.get(headerName) + "\r\n";
+		for (String fieldName : headers.keySet()) {
+			header += fieldName + ": " + headers.get(fieldName) + "\r\n";
 		}
 		return header;
 	}
