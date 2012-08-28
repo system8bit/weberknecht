@@ -22,8 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class WebSocketReceiver
-		extends Thread
+public class WebSocketReceiver extends Thread
 {
 	private DataInputStream input = null;
 	private WebSocket websocket = null;
@@ -39,7 +38,6 @@ public class WebSocketReceiver
 		this.eventHandler = websocket.getEventHandler();
 	}
 
-
 	public void run()
 	{
 		List<Byte> messageBytes = new ArrayList<Byte>();
@@ -52,11 +50,9 @@ public class WebSocketReceiver
 				long payload_length = 0;
 				if (length < 126) {
 					payload_length = length;
-				}
-				else if (length == 126) {
+				} else if (length == 126) {
 					payload_length = ((0xff & input.readByte()) << 8) | (0xff & input.readByte());
-				}
-				else if (length == 127) {
+				} else if (length == 127) {
 					// Does work up to MAX_VALUE of long (2^63-1) after that minus values are returned.
 					// However frames with such a high payload length are vastly unrealistic.
 					// TODO: add Limit for WebSocket Payload Length.
@@ -69,26 +65,22 @@ public class WebSocketReceiver
 				WebSocketMessage ws_message = new WebSocketMessage(message);
 				eventHandler.onMessage(ws_message);
 				messageBytes.clear();
-			}
-			catch (IOException ioe) {
+			} catch (IOException ioe) {
 				handleError();
 			}
 		}
 	}
-	
-	
+
 	public void stopit()
 	{
 		stop = true;
 	}
-	
-	
+
 	public boolean isRunning()
 	{
 		return !stop;
 	}
-	
-	
+
 	private void handleError()
 	{
 		stopit();
