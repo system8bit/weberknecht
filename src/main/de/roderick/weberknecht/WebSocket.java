@@ -283,7 +283,7 @@ public class WebSocket
 				port = 443;
 			}
 			try {
-				SocketFactory factory = SSLSocketFactory.getDefault();
+				SocketFactory factory = getSocketFactory();
 				socket = factory.createSocket(host, port);
 			} catch (UnknownHostException uhe) {
 				throw new WebSocketException("unknown host: " + host, uhe);
@@ -295,6 +295,15 @@ public class WebSocket
 		}
 
 		return socket;
+	}
+
+	static SSLSocketFactory socketFactory = null;
+	static private SocketFactory getSocketFactory(){
+		return socketFactory == null ? SSLSocketFactory.getDefault() : socketFactory;
+	}
+
+	static public void setDefaultSSLSocketFactory(SSLSocketFactory factory){
+		socketFactory = factory;
 	}
 
 	private byte[] generateMask()
