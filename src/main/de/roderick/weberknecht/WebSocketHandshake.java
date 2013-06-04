@@ -1,27 +1,27 @@
 /*
  *  Copyright (C) 2012 Roderick Baier
- *  
+ *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- *  
+ *
  *  	http://www.apache.org/licenses/LICENSE-2.0
- *  
+ *
  *  Unless required by applicable law or agreed to in writing, software
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
- *  limitations under the License. 
+ *  limitations under the License.
  */
 
 package de.roderick.weberknecht;
 
 import java.net.URI;
 import java.util.HashMap;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.apache.commons.codec.binary.Base64;
+
+import android.util.Base64;
 
 
 public class WebSocketHandshake
@@ -30,9 +30,8 @@ public class WebSocketHandshake
 	private String protocol = null;
 	private String nonce = null;
 	private Map<String, String> extraHeaders = null;
-	
-	
-	public WebSocketHandshake(URI url, String protocol, Map<String, String> extraHeaders)
+
+	public WebSocketHandshake(final URI url, final String protocol, final Map<String, String> extraHeaders)
 	{
 		this.url = url;
 		this.protocol = protocol;
@@ -80,7 +79,7 @@ public class WebSocketHandshake
 		return handshakeBytes;
 	}
 
-	private String generateHeader(LinkedHashMap<String, String> headers)
+	private String generateHeader(final LinkedHashMap<String, String> headers)
 	{
 		String header = new String();
 		for (String fieldName : headers.keySet()) {
@@ -95,10 +94,10 @@ public class WebSocketHandshake
 		for (int i = 0; i < 16; i++) {
 			nonce[i] = (byte) rand(0, 255);
 		}
-		return Base64.encodeBase64String(nonce);
+		return Base64.encodeToString(nonce, Base64.DEFAULT);
 	}
 
-	public void verifyServerStatusLine(String statusLine)
+	public void verifyServerStatusLine(final String statusLine)
 			throws WebSocketException
 	{
 		int statusCode = Integer.valueOf(statusLine.substring(9, 12));
@@ -112,7 +111,7 @@ public class WebSocketHandshake
 		}
 	}
 
-	public void verifyServerHandshakeHeaders(HashMap<String, String> headers)
+	public void verifyServerHandshakeHeaders(final HashMap<String, String> headers)
 			throws WebSocketException
 	{
 		if (!headers.get("Upgrade").toLowerCase().equals("websocket")) {
@@ -122,7 +121,7 @@ public class WebSocketHandshake
 		}
 	}
 
-	private int rand(int min, int max)
+	private int rand(final int min, final int max)
 	{
 		int rand = (int) (Math.random() * max + min);
 		return rand;
